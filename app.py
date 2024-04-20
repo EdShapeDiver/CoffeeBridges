@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 import plotly.express as px
 
-from viktor import ViktorController
+from viktor import ViktorController, UserError
 from viktor.core import Storage, File
 from viktor.geometry import GeoPoint
 
@@ -11,10 +11,17 @@ from viktor.parametrization import ViktorParametrization, Page, GeoPointField, O
     IntegerField, ActionButton, LineBreak, FileField, DownloadButton, OptionListElement, TextField, GeoPolylineField, Text
 from viktor.result import DownloadResult
 from viktor.views import MapView, MapResult, MapPoint, GeometryView, GeometryResult, WebView, WebResult, \
-    PlotlyAndDataResult, PlotlyAndDataView, PlotlyView, PlotlyResult, DataView, DataResult, MapPolyline
+    PlotlyAndDataResult, PlotlyAndDataView, PlotlyView, PlotlyResult, DataView, DataResult, MapPolyline, ImageView, ImageResult
 from viktor.external.generic import GenericAnalysis
+from io import StringIO
 
+import numpy as np
+
+
+import matplotlib.pyplot as plt
 from shapediver.ShapeDiverComputation import ShapeDiverComputation
+
+from google import create_html, get_elevation
 
 
 def param_site_class_visible(params, **kwargs):
@@ -28,7 +35,7 @@ class Parametrization(ViktorParametrization):
     intro = Page('Introduction')
     intro.txt = Text("This in the introduction placeholder")
     
-    location = Page('Location', views=['get_map_view', 'get_geometry_view'])
+    location = Page('Location', views=['get_map_view', 'get_geometry_view', 'get_svg_view', 'generate_map'])
     location.start_point = GeoPointField('Start point')
     location.end_point = GeoPointField('End point')
     location.bridge_location = GeoPolylineField('Bridge location')
@@ -65,3 +72,16 @@ class Controller(ViktorController):
         print(parameters)
         glTF_file = ShapeDiverComputation(parameters)
         return GeometryResult(geometry=glTF_file)
+
+    @WebView('My map', duration_guess=5)
+    def generate_map(self, params, **kwargs):
+
+        lon = 4.6
+        lat = 52.5
+        secret = 'token'
+
+        elevation = get_elevation(lat, lon, secret)
+        print('elevation=', elevation)
+
+        html = create_html(lon, lat, secret)
+        return WebResult(html=html)
