@@ -7,16 +7,39 @@ import os
 # ShapeDiver ticket and modelViewUrl
 from shapediver.ShapeDiverTinySdkViktorUtils import ShapeDiverTinySessionSdkMemoized
 
-ticket = os.getenv("SD_TICKET")
-if ticket is None or len(ticket) == 0:
-    ticket = "805b009e9bde7f264dc1804b71545266315d5d376ac67b9dca41f8d2d9adfecb2818965cd585e8190ede1abd23a752ef66297083b89b6d06bf6ad9c36e72e0712cafffc14fe797cfd263fac1129c6cf304a6730d7541b0aa9aca81648a5aeb419587b0401fb2cb470ac006a8d67cfb09391ae3fc14f2d757-b8a594f1bf2ff362c4e8247591715430"
 modelViewUrl = os.getenv("SD_MODEL_VIEW_URL")
 if modelViewUrl is None or len(modelViewUrl) == 0:
     modelViewUrl = "https://sdr7euc1.eu-central-1.shapediver.com"
 
+def ShapeDiver3dmComputation(parameters, ticket):
 
-def ShapeDiverComputation(parameters):
- 
+
+    # Initialize a session with the model (memoized)
+    shapeDiverSessionSdk = ShapeDiverTinySessionSdkMemoized(ticket, modelViewUrl, forceNewSession = True)
+
+    # compute outputs and exports of ShapeDiver model at the same time, 
+    # get resulting glTF 2 assets and export assets
+    result = shapeDiverSessionSdk.export(paramDict = parameters, includeOutputs = True)
+    exports = result.exports()
+    href = exports[0]['content'][0]['href']
+    return href
+
+
+def ShapeDiverDataComputation(parameters, ticket):
+
+
+    # Initialize a session with the model (memoized)
+    shapeDiverSessionSdk = ShapeDiverTinySessionSdkMemoized(ticket, modelViewUrl, forceNewSession = True)
+
+    # compute outputs and exports of ShapeDiver model at the same time, 
+    # get resulting glTF 2 assets and export assets
+    result = shapeDiverSessionSdk.export(paramDict = parameters, includeOutputs = True)
+    data = result.outputs()[0]['content'][0]['data']
+    return data
+
+def ShapeDiverComputation(parameters, ticket):
+
+
     # Initialize a session with the model (memoized)
     shapeDiverSessionSdk = ShapeDiverTinySessionSdkMemoized(ticket, modelViewUrl, forceNewSession = True)
 
