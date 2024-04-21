@@ -9,7 +9,7 @@ from viktor.geometry import GeoPoint
 from viktor.utils import memoize
 
 from viktor.parametrization import ViktorParametrization, Page, GeoPointField, OptionField, NumberField, BooleanField, Tab, \
-    IntegerField, ActionButton, LineBreak, FileField, DownloadButton, OptionListElement, TextField, GeoPolylineField, Text, DateField
+    IntegerField, ActionButton, LineBreak, FileField, DownloadButton, OptionListElement, TextField, GeoPolylineField, Text, DateField, TextAreaField
 from viktor.result import DownloadResult
 from viktor.views import MapView, MapResult, MapPoint, GeometryView, GeometryResult, WebView, WebResult, \
     PlotlyAndDataResult, PlotlyAndDataView, PlotlyView, PlotlyResult, DataView, DataResult, MapPolyline, ImageView, ImageResult, PDFView, PDFResult
@@ -33,6 +33,11 @@ from shapediver.ShapeDiverComputation import ShapeDiverComputation, ShapeDiverDa
 
 from google import create_html, get_elevation
 
+import requests
+import base64
+import io
+from PIL import Image
+
 
 def param_site_class_visible(params, **kwargs):
     if params.structural.code and params.structural.code.lower().startswith('asce7'):
@@ -53,11 +58,14 @@ class Parametrization(ViktorParametrization):
     location.bridge_location = GeoPolylineField('Bridge location')
     location.with_bridge = BooleanField('Include bridge on route')
 
-    bridge = Page('Bridge', views=['get_3d_bridge', 'get_manufacturing_model'])
+    bridge = Page('Bridge', views=['get_3d_bridge', 'get_manufacturing_model', 'render_bridge'])
     bridge.span = NumberField('Span', min=5000, max=100000, variant='slider', default=25000, flex=100)
     bridge.lb = LineBreak()
     bridge.segmentation = NumberField('Segmentation', min=1000, max=2550, default=2550, variant='slider', flex=100)
     bridge.download_3dm = DownloadButton('Download printing path', 'download_3dm')
+    bridge.lb2 = LineBreak()
+    bridge.image = FileField('Image')
+    bridge.prompt = TextAreaField('Prompt', default='Enter a prompt')
 
     reporting = Page('Expensive PDFs', views=['pdf_view'])
     reporting.project_name = TextField('Name of coffee lovers')
@@ -243,6 +251,83 @@ class Controller(ViktorController):
         fl = File.from_url(href)
         return DownloadResult(fl, 'bridge_printing_path.3dm')
 
+    def stablediffusion(self, base64_image, custom_prompt):
+        # Define the URL and the payload to send.
+        url = "http://127.0.0.1:7861"
+
+        payload = {
+            "prompt": custom_prompt + "beautiful modern concrete bridge over a river in Rotterdam urban landscape, concrete bridge, modern architecture, Rotterdam, RAW photo, subject, 8k uhd, dslr, high quality, film grain, Fujifilm XT3",
+            "negative_prompt": "cable-stayed bridge, suspended bridge, (deformed iris, deformed pupils, semi-realistic, cgi, 3d, render, sketch, cartoon, drawing, anime), text, cropped, out of frame, worst quality, low quality, jpeg artifacts, ugly, duplicate, morbid, mutilated, extra fingers, mutated hands, poorly drawn hands, poorly drawn face, mutation, deformed, blurry, dehydrated, bad anatomy, bad proportions, extra limbs, cloned face, disfigured, gross proportions, malformed limbs, missing arms, missing legs, extra arms, extra legs, fused fingers, too many fingers, long neck,  BadDream, UnrealisticDream",
+            "steps": 20,
+            "cfg_scale": 7,
+            "width": 736, 
+            "height": 512,
+            "sd_model_checkpoint": "realvisxlV40_v40LightningBakedvae",
+            "sampler_name": "Euler a",
+            "enable_hr": True,
+            "hr_scale": 2,
+            "hr_upscaler": "ESRGAN_4x",
+            "denoising_strength": 0.7,
+            "alwayson_scripts": {
+                "controlnet": {
+                    "args": [{
+                        "module": "depth_midas",
+                        "input_image": base64_image,
+                        "model": "control-lora-depth-rank128 [df51c1c8]",
+                        "weight": 1,
+                        "resize_mode": "Crop and Resize",
+                        "lowvram": "true",
+                        "processor_res": 512,
+                        "threshold_a": 0.5,
+                        "threshold_b": 0.5,
+                        "guidance_start": 0,
+                        "guidance_end": 1,
+                        "pixel_perfect": True,
+                        "control_mode": "Balanced",
+                        "hr_option": "Both",
+                    },
+                    {
+                        "module": "canny",
+                        "input_image": base64_image,
+                        "model": "control-lora-canny-rank128 [c910cde9]",
+                        "weight": 1,
+                        "resize_mode": "Crop and Resize",
+                        "lowvram": "true",
+                        "processor_res": 512,
+                        "threshold_a": 100,
+                        "threshold_b": 200,
+                        "guidance_start": 0,
+                        "guidance_end": 1,
+                        "pixel_perfect": True,
+                        "control_mode": "Balanced",
+                        "hr_option": "Both",
+                    },
+                    ]
+                }
+            }
+        }
+
+
+        # Send said payload to said URL through the API.
+        response = requests.post(url=f'{url}/sdapi/v1/txt2img', json=payload)
+        r = response.json()
+
+        # Decode and save the image.
+        with open("output.png", 'wb') as f:
+            f.write(base64.b64decode(r['images'][0]))
+
+
+    @ImageView("Image", duration_guess=5)
+    def render_bridge(self, params, **kwargs):
+
+        image_bytes = params.bridge.image.file.getvalue_binary()
+        print(image_bytes)
+        base64_image = base64.b64encode(image_bytes).decode('utf-8')
+
+
+        self.stablediffusion(base64_image, params.bridge.prompt)
+        image_path = Path(__file__).parent / 'output.png'
+        return ImageResult.from_path(image_path)
 
 
     def generate_word_document(self, params):
