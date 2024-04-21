@@ -63,6 +63,7 @@ class Parametrization(ViktorParametrization):
     bridge.lb = LineBreak()
     bridge.segmentation = NumberField('Segmentation', min=1000, max=2550, default=2550, variant='slider', flex=100)
     bridge.download_3dm = DownloadButton('Download printing path', 'download_3dm')
+    bridge.download_3dm_model = DownloadButton('Download 3d bridge', 'download_3dm_bridge')
     bridge.lb2 = LineBreak()
     bridge.image = FileField('Image')
     bridge.prompt = TextAreaField('Prompt', default='Enter a prompt')
@@ -98,17 +99,17 @@ class Controller(ViktorController):
         parameters['1ef66459-c499-4492-b4da-3404e954a806'] = end_bridge_lat
         parameters['436e5eb7-89fe-4a9d-badb-ab947dd2635b'] = end_bridge_lon
 
-        if params.location.with_bridge:
+        if with_bridge:
             parameters['1f06c0bf-fc7a-4033-9aac-3cd5936f31eb'] = 'true'
         else:
             parameters['1f06c0bf-fc7a-4033-9aac-3cd5936f31eb'] = 'false'
 
         print(parameters)
 
-        ticket='3b773ae01d9b4e8bd6079ad70b8eed101b77fe0c2a7f21ffba3967b568573b7953223412800772936d8980923b711152be730d91847d60852c8198a6995e7d8b9996cf6b48bfbd5410e44c671458cabe0aac23739078fcf19ec0ae2cf696213af9cc6c490cbc7f9eb9ed57ff9f2f9134510a62528cf85c95-f2882bcadce4a59d285e2d86541c4fde'
-        polylines = ShapeDiverDataComputation(parameters, ticket)
-        total_distance = 0
-        return polylines, total_distance
+        ticket='9eabf5ff5203e71772f9296bca3e3af3f5a6c9821c93e38f3849d2de1ab7df5a16b09744f390791d912fb5a55e4ea99653ee82484ef91a3abd91d1dc026d44da9d228c905e2ec992ecd16bfa00ee667f7de94274a3f53608db429eb278e20ae8fcd63d73178f1647c28f3c2ff738885b59615dc662706637-84bc43300760a165df14f58afc7e786d'
+        polylines, distance_km = ShapeDiverDataComputation(parameters, ticket)
+        print('distance_km', distance_km)
+        return polylines, distance_km
 
     @WebView('Introduction', duration_guess=1)
     def introduction_view(self, params, **kwargs):
@@ -222,11 +223,38 @@ class Controller(ViktorController):
         parameters['264b7596-c96e-4eec-b6e7-a9055925de1a'] = params.bridge.span
         print(parameters)
 
-        ticket='862ead2a526a0d70a54393ea058d0b246390aade049ee45ea7d80a7072a7aa639846ce95a1f2d1c27b5f193ba5671a000732caff95d1c920e9103e44762ef6478780d9d58f538d4eb175b70c4beb2c81c4e0eeca819d30a03c53069a9de947b3f0a2f62959d54a6060a0a9e46c068aa577dc11c539cf113d-0ec555a918be16853e01ac16ffa03796'
+        ticket='bd9ffd0296b85ad481e6fa62c8775359de66e66135e4eee5c805cb6686f19f32301c35792e706caca04a2e974407e76be170521988c984f1932fcf5279b4b1befa93b56c34ef8dde8a679de2e83f7e2076206619943ca650d2299b3765f88d81405fc6213087968c9ace3dc9d175513582842ee8688a3672-0900cd0b3d7bb41cf858e47ef178a48d'
         
         print(shapediver_locations)
         glTF_file = ShapeDiverComputation(parameters, ticket)
         return GeometryResult(geometry=glTF_file)
+
+    def download_3dm_bridge(self, params, **kwargs):
+
+        parameters = {}
+
+        locations = self.get_locations(params.location.bridge_location, SECRET)
+
+        shapediver_locations = []
+        for lat, lon, elevation in locations:
+            x,y = RDWGSConverter.from_wgs_to_rd((lat, lon))
+            shapediver_locations.append([x, y, elevation])
+
+        # centering
+        x_start, y_start, _ = shapediver_locations[round(len(shapediver_locations)/2)]
+
+        moved_shapediver_locations = [[loc[0]-x_start, loc[1]-y_start, loc[2]] for loc in shapediver_locations]
+
+        parameters['bdd0afd3-d14f-4b77-bb05-90ef7cd7f850'] = moved_shapediver_locations
+        parameters['264b7596-c96e-4eec-b6e7-a9055925de1a'] = params.bridge.span
+        print(parameters)
+
+        ticket='bd9ffd0296b85ad481e6fa62c8775359de66e66135e4eee5c805cb6686f19f32301c35792e706caca04a2e974407e76be170521988c984f1932fcf5279b4b1befa93b56c34ef8dde8a679de2e83f7e2076206619943ca650d2299b3765f88d81405fc6213087968c9ace3dc9d175513582842ee8688a3672-0900cd0b3d7bb41cf858e47ef178a48d'
+        
+        bridge_3dm_href = ShapeDiver3dmComputation(parameters, ticket)
+
+        fl = File.from_url(bridge_3dm_href)
+        return DownloadResult(fl, 'bridge_3d_model.3dm')
 
     @GeometryView('Manufacturing', duration_guess=10, up_axis='Y', update_label='Run ShapeDiver')
     def get_manufacturing_model(self, params, **kwargs):
@@ -234,7 +262,7 @@ class Controller(ViktorController):
         parameters['2da40d73-8de9-49a5-9b83-752c2d6f9084'] = params.bridge.span
         parameters['dcbcdc2e-0856-4d71-a7dd-96133621ef5e'] = params.bridge.segmentation
 
-        ticket='f2ba5fbf1ba817e36cabe7dd162c3ddda94ab4e55f4ad59f7f000455d6ece043a5377de40d61f13943ac97bca2baa95fac04ce694fd516d9fb2ae4c73c3b148bd6cd0ac58bbe58ab5a07a10c4486f5ea56bedfc5380da3a545e045b68ee52ab638acce5037dfafe12171bb504a70d82b297b25feb047eda7-38249c0c09f94266f8317d85143ed8ca'
+        ticket='9c11edcf8fd7f3dd4951fa0785f547cf8edf6a3a0099dec671dcd9839246b0a1a30910bad86643fd1095ae8f34a7a997149f47dc97f0cf28b63c8b570d321eb3be9dda5e99d60f0ff57a1ea15770c36077302e7b56cafec93e4734f37a1051fc610d0bbab02235fa172670726d367ea8a7b6790343611c3b-d4b74ceeee26c41065b38984254482f8'
         
         glTF_file = ShapeDiverComputation(parameters, ticket)
         return GeometryResult(geometry=glTF_file)
@@ -244,7 +272,7 @@ class Controller(ViktorController):
         parameters['2da40d73-8de9-49a5-9b83-752c2d6f9084'] = params.bridge.span
         parameters['dcbcdc2e-0856-4d71-a7dd-96133621ef5e'] = params.bridge.segmentation
 
-        ticket='f2ba5fbf1ba817e36cabe7dd162c3ddda94ab4e55f4ad59f7f000455d6ece043a5377de40d61f13943ac97bca2baa95fac04ce694fd516d9fb2ae4c73c3b148bd6cd0ac58bbe58ab5a07a10c4486f5ea56bedfc5380da3a545e045b68ee52ab638acce5037dfafe12171bb504a70d82b297b25feb047eda7-38249c0c09f94266f8317d85143ed8ca'
+        ticket='9c11edcf8fd7f3dd4951fa0785f547cf8edf6a3a0099dec671dcd9839246b0a1a30910bad86643fd1095ae8f34a7a997149f47dc97f0cf28b63c8b570d321eb3be9dda5e99d60f0ff57a1ea15770c36077302e7b56cafec93e4734f37a1051fc610d0bbab02235fa172670726d367ea8a7b6790343611c3b-d4b74ceeee26c41065b38984254482f8'
         
         href = ShapeDiver3dmComputation(parameters, ticket)
 
@@ -317,7 +345,7 @@ class Controller(ViktorController):
             f.write(base64.b64decode(r['images'][0]))
 
 
-    @ImageView("Image", duration_guess=5)
+    @ImageView("Render", duration_guess=5)
     def render_bridge(self, params, **kwargs):
 
         image_bytes = params.bridge.image.file.getvalue_binary()
@@ -341,12 +369,12 @@ class Controller(ViktorController):
 
        ########################################
        #should be changed automatically!
-       starting_point = f"Home, ({params.location.start_point.lat},{params.location.start_point.lon},z)"
-       coffeeshop_point = f"Starbucks ({params.location.end_point.lat},{params.location.end_point.lon},z)"
+       starting_point = f"Home, ({round(params.location.start_point.lat, 2)},{round(params.location.start_point.lon, 2)})"
+       coffeeshop_point = f"Starbucks ({round(params.location.end_point.lat, 2)},{round(params.location.end_point.lon, 2)})"
        time_before = f"{duration_without_bridge_min}"
        time_after = f"{duration_with_bridge_min}"
-       distance_before = f"{distance_without_bridge}"
-       distance_after = f"{distance_with_bridge}"
+       distance_before = f"{round(distance_without_bridge)}"
+       distance_after = f"{round(distance_with_bridge)}"
        people_before = "6000"
        people_after = "10000"
        bridge_weight = "AAA"
@@ -371,19 +399,19 @@ class Controller(ViktorController):
        components.append(WordFileTag("bridge_weight", str(bridge_weight)))
 
        #1.Place image from a starting point to a coffeeshop point point with Bridge locations
-       image_path = Path(__file__).parent / "map.jpg"
+       image_path = Path(__file__).parent / "bridge_render.png"
        with open(image_path, 'rb') as image:
         word_file_image = WordFileImage(image, 'map_figure', width=width_value, height=height_value)
        components.append(word_file_image)
 
        #2.Place image before version
-       image_path = Path(__file__).parent / "map_before.jpg"
+       image_path = Path(__file__).parent / "without_bridge.png"
        with open(image_path, 'rb') as image:
         word_file_image = WordFileImage(image, 'map_before', width=width_value, height=height_value)
        components.append(word_file_image)
 
        #3.Place image after version
-       image_path = Path(__file__).parent / "map_after.jpg"
+       image_path = Path(__file__).parent / "with_bridge.png"
        with open(image_path, 'rb') as image:
         word_file_image = WordFileImage(image, 'map_after', width=width_value, height=height_value)
        components.append(word_file_image)

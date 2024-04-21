@@ -35,7 +35,8 @@ def ShapeDiverDataComputation(parameters, ticket):
     # get resulting glTF 2 assets and export assets
     result = shapeDiverSessionSdk.export(paramDict = parameters, includeOutputs = True)
     data = result.outputs()[0]['content'][0]['data']
-    return data
+    distance_km = result.outputs()[2]['content'][0]['data']
+    return data, distance_km
 
 def ShapeDiverComputation(parameters, ticket):
 
