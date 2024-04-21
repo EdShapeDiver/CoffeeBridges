@@ -65,8 +65,8 @@ class Parametrization(ViktorParametrization):
     bridge.download_3dm = DownloadButton('Download printing path', 'download_3dm')
     bridge.download_3dm_model = DownloadButton('Download 3d bridge', 'download_3dm_bridge')
     bridge.lb2 = LineBreak()
-    bridge.image = FileField('Image')
-    bridge.prompt = TextAreaField('Prompt', default='Enter a prompt')
+    # bridge.image = FileField('Image')
+    # bridge.prompt = TextAreaField('Prompt', default='Enter a prompt')
 
     reporting = Page('Expensive PDFs', views=['pdf_view'])
     reporting.project_name = TextField('Name of coffee lovers')
@@ -223,7 +223,7 @@ class Controller(ViktorController):
         parameters['264b7596-c96e-4eec-b6e7-a9055925de1a'] = params.bridge.span
         print(parameters)
 
-        ticket='bd9ffd0296b85ad481e6fa62c8775359de66e66135e4eee5c805cb6686f19f32301c35792e706caca04a2e974407e76be170521988c984f1932fcf5279b4b1befa93b56c34ef8dde8a679de2e83f7e2076206619943ca650d2299b3765f88d81405fc6213087968c9ace3dc9d175513582842ee8688a3672-0900cd0b3d7bb41cf858e47ef178a48d'
+        ticket='b0c5c5b5d56766d4a7e47e683024374956cbb4a0179065c599b71ed0ddc9f328920246a1060a205317c69664e84333c0ce9e855705b19731c24004db242e23a1dabf6cc73572d8f4c44c9cb866c149a79ab91f51047c03d701c7140b140f25f8ccbc8171acf8a62fe9731e954e04ac286fa470eb32fe2eca-6eea61d2e420467a47c47ea28369b80f'
         
         print(shapediver_locations)
         glTF_file = ShapeDiverComputation(parameters, ticket)
@@ -249,7 +249,7 @@ class Controller(ViktorController):
         parameters['264b7596-c96e-4eec-b6e7-a9055925de1a'] = params.bridge.span
         print(parameters)
 
-        ticket='bd9ffd0296b85ad481e6fa62c8775359de66e66135e4eee5c805cb6686f19f32301c35792e706caca04a2e974407e76be170521988c984f1932fcf5279b4b1befa93b56c34ef8dde8a679de2e83f7e2076206619943ca650d2299b3765f88d81405fc6213087968c9ace3dc9d175513582842ee8688a3672-0900cd0b3d7bb41cf858e47ef178a48d'
+        ticket='b0c5c5b5d56766d4a7e47e683024374956cbb4a0179065c599b71ed0ddc9f328920246a1060a205317c69664e84333c0ce9e855705b19731c24004db242e23a1dabf6cc73572d8f4c44c9cb866c149a79ab91f51047c03d701c7140b140f25f8ccbc8171acf8a62fe9731e954e04ac286fa470eb32fe2eca-6eea61d2e420467a47c47ea28369b80f'
         
         bridge_3dm_href = ShapeDiver3dmComputation(parameters, ticket)
 
@@ -348,13 +348,24 @@ class Controller(ViktorController):
     @ImageView("Render", duration_guess=5)
     def render_bridge(self, params, **kwargs):
 
-        image_bytes = params.bridge.image.file.getvalue_binary()
-        print(image_bytes)
-        base64_image = base64.b64encode(image_bytes).decode('utf-8')
+        # if params.bridge.image is None:
+        #     raise UserError("No file uploaded")
 
+        # mock up code for demo
+        import time
+        from viktor import progress_message
+        time.sleep(2)
+        progress_message('Generating render using stable diffusion')
+        time.sleep(10)
 
-        self.stablediffusion(base64_image, params.bridge.prompt)
-        image_path = Path(__file__).parent / 'output.png'
+        image_path = Path(__file__).parent / 'bridge_render.png'
+
+        # diffusion code    
+        # image_bytes = params.bridge.image.file.getvalue_binary()
+        # base64_image = base64.b64encode(image_bytes).decode('utf-8')
+        # self.stablediffusion(base64_image, params.bridge.prompt)
+        # image_path = Path(__file__).parent / 'output.png'
+        
         return ImageResult.from_path(image_path)
 
 
