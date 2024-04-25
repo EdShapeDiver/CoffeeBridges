@@ -25,7 +25,7 @@ def ShapeDiver3dmComputation(parameters, ticket):
     return href
 
 
-def ShapeDiverDataComputation(parameters, ticket):
+def ShapeDiverDataComputation(parameters, ticket, expected_names):
 
 
     # Initialize a session with the model (memoized)
@@ -34,9 +34,14 @@ def ShapeDiverDataComputation(parameters, ticket):
     # compute outputs and exports of ShapeDiver model at the same time, 
     # get resulting glTF 2 assets and export assets
     result = shapeDiverSessionSdk.export(paramDict = parameters, includeOutputs = True)
-    data = result.outputs()[0]['content'][0]['data']
-    distance_km = result.outputs()[2]['content'][0]['data']
-    return data, distance_km
+
+    results = {}
+    for i, output in enumerate(result.outputs()):
+        name = output['name']
+        if name in expected_names:
+            results[name] = output['content'][0]['data']
+
+    return results
 
 def ShapeDiverComputation(parameters, ticket):
 

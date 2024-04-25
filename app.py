@@ -107,7 +107,9 @@ class Controller(ViktorController):
         print(parameters)
 
         ticket='9eabf5ff5203e71772f9296bca3e3af3f5a6c9821c93e38f3849d2de1ab7df5a16b09744f390791d912fb5a55e4ea99653ee82484ef91a3abd91d1dc026d44da9d228c905e2ec992ecd16bfa00ee667f7de94274a3f53608db429eb278e20ae8fcd63d73178f1647c28f3c2ff738885b59615dc662706637-84bc43300760a165df14f58afc7e786d'
-        polylines, distance_km = ShapeDiverDataComputation(parameters, ticket)
+        result = ShapeDiverDataComputation(parameters, ticket, {'distance', 'path'})
+        polylines = result['path']
+        distance_km = result['distance']
         print('distance_km', distance_km)
         return polylines, distance_km
 
